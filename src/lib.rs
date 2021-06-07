@@ -20,6 +20,7 @@ pub use algorithms::Algorithm;
 pub use decoding::dangerous_unsafe_decode;
 pub use decoding::{
     dangerous_insecure_decode, dangerous_insecure_decode_with_validation, decode, decode_header,
+    decode_with_key_fn,
     DecodingKey, TokenData,
 };
 pub use encoding::{encode, EncodingKey};

@@ -38,6 +38,12 @@ pub struct Validation {
     ///
     /// Defaults to `true`.
     pub validate_exp: bool,
+    /// Whether to validate the `iat` field.
+    ///
+    /// It will return an error if the current timestamp is before the time in the `iat` field.
+    ///
+    /// Defaults to `false`.
+    pub validate_iat: bool,
     /// Whether to validate the `nbf` field.
     ///
     /// It will return an error if the current timestamp is before the time in the `nbf` field.
@@ -86,6 +92,7 @@ impl Default for Validation {
             leeway: 0,
 
             validate_exp: true,
+            validate_iat: false,
             validate_nbf: false,
 
             iss: None,
@@ -112,6 +119,16 @@ pub fn validate(claims: &Map<String, Value>, options: &Validation) -> Result<()>
             }
         } else {
             return Err(new_error(ErrorKind::ExpiredSignature));
+        }
+    }
+
+    if options.validate_iat {
+        if let Some(iat) = claims.get("iat") {
+            if from_value::<u64>(iat.clone())? > now + options.leeway {
+                return Err(new_error(ErrorKind::ImmatureSignature));
+            }
+        } else {
+            return Err(new_error(ErrorKind::ImmatureSignature));
         }
     }
 

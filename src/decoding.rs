@@ -178,6 +178,38 @@ pub fn decode<T: DeserializeOwned>(
     Ok(TokenData { header, claims: decoded_claims })
 }
 
+/// Decode and validate a JWT, with key func.
+#[allow(dead_code)]
+pub fn decode_with_key_fn<T: DeserializeOwned, F: FnOnce(&T) -> DecodingKey>(
+    token: &str,
+    key_fn: F,
+    validation: &Validation,
+) -> Result<TokenData<T>> {
+    let (signature, message) = expect_two!(token.rsplitn(2, '.'));
+    let (claims, header) = expect_two!(message.rsplitn(2, '.'));
+    let header = Header::from_encoded(header)?;
+
+    if !validation.algorithms.contains(&header.alg) {
+        return Err(new_error(ErrorKind::InvalidAlgorithm));
+    }
+
+    let (decoded_claims, claims_map): (T, _) = from_jwt_part_claims(claims)?;
+    validate(&claims_map, validation)?;
+
+    let key = key_fn(&decoded_claims);
+    for alg in &validation.algorithms {
+        if key.family != alg.family() {
+            return Err(new_error(ErrorKind::InvalidAlgorithm));
+        }
+    }
+
+    if !verify(signature, message, &key, header.alg)? {
+        return Err(new_error(ErrorKind::InvalidSignature));
+    }
+
+    Ok(TokenData { header, claims: decoded_claims })
+}
+
 /// Decode a JWT without any signature verification/validations.
 ///
 /// NOTE: Do not use this unless you know what you are doing! If the token's signature is invalid, it will *not* return an error.
